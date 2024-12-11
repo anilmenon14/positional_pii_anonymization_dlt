@@ -1,0 +1,138 @@
+# yaml-language-server: $schema=bundle_config_schema.json
+bundle:
+  name: pii_detection_bundle
+
+variables:
+  ingestion_folder:
+    description: "Path to the ingestion folder"
+    default: "/dlt_landing/customers_pii_detection_landing"
+
+resources:
+  pipelines:
+    pipeline_dlt_pii_detection:
+      name: dlt_pii_detection
+      configuration:
+        env: dev
+        spark.databricks.safespark.externalUDF.plan.limit: 50
+        ingestion_folder: ${var.ingestion_folder}
+        known_pii_cols: firstname,lastname
+        cols_to_exclude: id,operation,operation_date,part1,part2,part3,file_path,file_name,file_size,file_block_start,file_block_length,file_modification_time,processing_time
+      libraries:
+        - notebook:
+            path: ./pipeline_code/01-read_autoloader_directory_listing.py
+        - notebook:
+            path: ./pipeline_code/02-analyze_and_anonymize.py
+      target: customer_pii_detection
+      catalog: main_catalog
+      development: false
+
+  jobs:
+    dlt_pii_detection:
+      name: dlt_pii_detection
+      tasks:
+        - task_key: Data_Generator
+          notebook_task:
+            notebook_path: ./pipeline_code/00-pii-data-generator.py
+            base_parameters:
+              num_fake_records: 1000000
+              num_freetext_cols: 1
+            source: WORKSPACE
+      queue:
+        enabled: true
+      parameters:
+        - name: ingestion_folder
+          default: ${var.ingestion_folder}
+
+
+targets:
+  azure_env_target_example:
+    workspace:
+      host: https://adb-3737170459724564.4.azuredatabricks.net
+      root_path: /Applications/PII_Contextual_Anonymizer
+    resources:
+      pipelines:
+        pipeline_dlt_pii_detection:
+          # Comment out 'clusters' block while 'serverless : true'. Uncomment if 'serverless : false'
+          clusters:
+            - label: default
+              node_type_id: Standard_D4ds_v5
+              driver_node_type_id: Standard_D4ds_v5
+              custom_tags:
+                PythonUDF.enabled: "true"
+              autoscale:
+                min_workers: 8
+                max_workers: 10
+                mode: ENHANCED
+          channel: PREVIEW
+          serverless: false
+
+      jobs:
+        dlt_pii_detection:
+          tasks:
+            - task_key: Data_Generator
+              job_cluster_key: Job_cluster_shared
+          job_clusters:
+            - job_cluster_key: Job_cluster_shared
+              new_cluster:
+                cluster_name: ""
+                spark_version: 13.3.x-scala2.12
+                custom_tags:
+                  workload_name: dlt_pii_detection
+                spark_env_vars:
+                  PYSPARK_PYTHON: /databricks/python3/bin/python3
+                enable_elastic_disk: true
+                data_security_mode: SINGLE_USER
+                runtime_engine: STANDARD
+                autoscale:
+                  min_workers: 1
+                  max_workers: 5
+                azure_attributes:
+                  first_on_demand: 1
+                  availability: SPOT_WITH_FALLBACK_AZURE
+                  spot_bid_max_price: -1
+                node_type_id: Standard_D4ds_v5
+  aws_env_target_example:
+    workspace:
+      host: https://one-env-am-rsa-ps.cloud.databricks.com
+      root_path: /Applications/PII_Contextual_Anonymizer
+    resources:
+      pipelines:
+        pipeline_dlt_pii_detection:
+          # Comment out 'clusters' block while 'serverless : true'. Uncomment if 'serverless : false'
+          clusters:
+            - label: default
+              node_type_id: i3.xlarge
+              driver_node_type_id: i3.xlarge
+              custom_tags:
+                PythonUDF.enabled: "true"
+              autoscale:
+                min_workers: 8
+                max_workers: 10
+                mode: ENHANCED
+          channel: PREVIEW
+          serverless: false
+          
+      jobs:
+        dlt_pii_detection:
+          job_clusters:
+            - job_cluster_key: Job_cluster_shared
+              new_cluster:
+                cluster_name: ""
+                spark_version: 13.3.x-scala2.12
+                custom_tags:
+                  workload_name: dlt_pii_detection
+                spark_env_vars:
+                  PYSPARK_PYTHON: /databricks/python3/bin/python3
+                enable_elastic_disk: true
+                data_security_mode: SINGLE_USER
+                runtime_engine: STANDARD
+                autoscale:
+                  min_workers: 1
+                  max_workers: 5
+                aws_attributes:
+                  first_on_demand: 1
+                  availability: SPOT_WITH_FALLBACK
+                  zone_id: eu-west-1a
+                  spot_bid_price_percent: 100
+                  ebs_volume_count: 0
+                node_type_id: i3.xlarge
