@@ -82,3 +82,8 @@ These settings can be updated in the `databricks.yml` file before deployment and
     - This will need to be updated in tandem since DLT does not allow to parametrize the `pip install` command.
 - For UDF support, `PREVIEW` channel in DLT is being used. Since DLT does not have a concept of 'pinning' specific runtime versions, choices we have are `CURRENT` or `PREVIEW` in the DLT settings, which are moving targets of runtime. 
     - At the time of your testing, you may expect to see different behavior of the pipeline based on the incumbent `PREVIEW` DBR being used by DLT. At the time of this documentation, `CURRENT` channel has not worked for this project and has only worked on `PREVIEW`
+
+
+**Disclaimer:**
+- The views/opinions expressed here are our own and do not necessarily represent the views/opinions of Databricks.
+- The sample code provided is intended to aid in getting started and may not be production-ready. The code does not have any guarantees/warantees/support. Use it at your own risk.
