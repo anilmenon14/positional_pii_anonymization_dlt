@@ -55,7 +55,7 @@ targets:
           # Comment out 'clusters' block while 'serverless : true'. Uncomment if 'serverless : false'
           clusters:
             - label: default
-              node_type_id: Standard_D4ds_v5
+              node_type_id: Standard_E8_v3
               driver_node_type_id: Standard_D4ds_v5
               custom_tags:
                 PythonUDF.enabled: "true"
